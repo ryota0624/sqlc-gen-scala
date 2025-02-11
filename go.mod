@@ -1,4 +1,4 @@
-module github.com/sqlc-dev/sqlc-gen-kotlin
+module github.com/sqlc-dev/sqlc-gen-scala
 
 go 1.19
 

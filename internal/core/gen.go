@@ -13,7 +13,7 @@ import (
 	"github.com/sqlc-dev/plugin-sdk-go/plugin"
 	"github.com/sqlc-dev/plugin-sdk-go/sdk"
 
-	"github.com/sqlc-dev/sqlc-gen-kotlin/internal/inflection"
+	"github.com/sqlc-dev/sqlc-gen-scala/internal/inflection"
 )
 
 var ktIdentPattern = regexp.MustCompile("[^a-zA-Z0-9_]+")
@@ -75,7 +75,7 @@ func (v QueryValue) Type() string {
 
 func jdbcSet(t ktType, idx int, name string) string {
 	if t.IsEnum && t.IsArray {
-		return fmt.Sprintf(`stmt.setArray(%d, conn.createArrayOf("%s", %s.map { v -> v.value }.toTypedArray()))`, idx, t.DataType, name)
+		return fmt.Sprintf(`stmt.setArray(%d, conn.createArrayOf("%s", %s.map(_.value).toArray()))`, idx, t.DataType, name)
 	}
 	if t.IsEnum {
 		if t.Engine == "postgresql" {
@@ -85,7 +85,7 @@ func jdbcSet(t ktType, idx int, name string) string {
 		}
 	}
 	if t.IsArray {
-		return fmt.Sprintf(`stmt.setArray(%d, conn.createArrayOf("%s", %s.toTypedArray()))`, idx, t.DataType, name)
+		return fmt.Sprintf(`stmt.setArray(%d, conn.createArrayOf("%s", %s.toArray()))`, idx, t.DataType, name)
 	}
 	if t.IsTime() {
 		return fmt.Sprintf("stmt.setObject(%d, %s)", idx, name)
@@ -95,6 +95,10 @@ func jdbcSet(t ktType, idx int, name string) string {
 	}
 	if t.IsUUID() {
 		return fmt.Sprintf("stmt.setObject(%d, %s)", idx, name)
+	}
+
+	if t.IsNull {
+		return fmt.Sprintf("stmt.set%s(%d, %s.orNull)", t.Name, idx, name)
 	}
 	return fmt.Sprintf("stmt.set%s(%d, %s)", t.Name, idx, name)
 }
@@ -155,7 +159,7 @@ func jdbcGet(t ktType, idx int) string {
 		return fmt.Sprintf(`(results.getArray(%d).array as Array<String>).map { v -> %s.lookup(v)!! }.toList()`, idx, t.Name)
 	}
 	if t.IsEnum {
-		return fmt.Sprintf("%s.lookup(results.getString(%d))!!", t.Name, idx)
+		return fmt.Sprintf("%s.valueOf(results.getString(%d))!!", t.Name, idx)
 	}
 	if t.IsArray {
 		return fmt.Sprintf(`(results.getArray(%d).array as Array<%s>).toList()`, idx, t.Name)
@@ -175,6 +179,9 @@ func jdbcGet(t ktType, idx int) string {
 	}
 	if t.IsBigDecimal() {
 		return fmt.Sprintf(`results.getBigDecimal(%d)`, idx)
+	}
+	if t.IsNull {
+		return fmt.Sprintf(`Option(results.get%s(%d))`, t.Name, idx)
 	}
 	return fmt.Sprintf(`results.get%s(%d)`, t.Name, idx)
 }
@@ -331,15 +338,11 @@ type ktType struct {
 func (t ktType) String() string {
 	v := t.Name
 	if t.IsArray {
-		v = fmt.Sprintf("List<%s>", v)
+		v = fmt.Sprintf("List[%s]", v)
 	} else if t.IsNull {
-		v += "?"
+		v = fmt.Sprintf("Option[%s]", v)
 	}
 	return v
-}
-
-func (t ktType) jdbcSetter() string {
-	return "set" + t.jdbcType()
 }
 
 func (t ktType) jdbcType() string {

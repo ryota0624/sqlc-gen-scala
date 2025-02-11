@@ -165,6 +165,7 @@ func (i *Importer) queryImports(filename string) [][]string {
 
 	std := stdImports(uses)
 	std["java.sql.Connection"] = struct{}{}
+	std["scala.util.Using"] = struct{}{}
 	if hasEnum() && i.Settings.Engine == "postgresql" {
 		std["java.sql.Types"] = struct{}{}
 	}

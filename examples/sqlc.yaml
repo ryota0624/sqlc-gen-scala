@@ -1,16 +1,18 @@
 version: '2'
 plugins:
-- name: kt
-  wasm:
-    url: https://downloads.sqlc.dev/plugin/sqlc-gen-kotlin_1.2.0.wasm
-    sha256: 22b437ecaea66417bbd3b958339d9868ba89368ce542c936c37305acf373104b
+- name: scala
+#  wasm:
+#    url: https://downloads.sqlc.dev/plugin/sqlc-gen-kotlin_1.2.0.wasm
+#    sha256: 22b437ecaea66417bbd3b958339d9868ba89368ce542c936c37305acf373104b
+  process:
+    cmd: ../bin/sqlc-gen-scala
 sql:
 - schema: src/main/resources/authors/postgresql/schema.sql
   queries: src/main/resources/authors/postgresql/query.sql
   engine: postgresql
   codegen:
   - out: src/main/kotlin/com/example/authors/postgresql
-    plugin: kt
+    plugin: scala
     options:
       package: com.example.authors.postgresql
 - schema: src/main/resources/ondeck/postgresql/schema
@@ -18,14 +20,14 @@ sql:
   engine: postgresql
   codegen:
   - out: src/main/kotlin/com/example/ondeck/postgresql
-    plugin: kt
+    plugin: scala
     options:
       package: com.example.ondeck.postgresql
 - schema: src/main/resources/jets/postgresql/schema.sql
   queries: src/main/resources/jets/postgresql/query-building.sql
   engine: postgresql
   codegen:
-  - plugin: kt
+  - plugin: scala
     out: src/main/kotlin/com/example/jets
     options:
       package: com.example.jets
@@ -34,7 +36,7 @@ sql:
   engine: postgresql
   codegen:
   - out: src/main/kotlin/com/example/booktest/postgresql
-    plugin: kt
+    plugin: scala
     options:
       package: com.example.booktest.postgresql
 - schema: src/main/resources/authors/mysql/schema.sql
@@ -42,7 +44,7 @@ sql:
   engine: mysql
   codegen:
   - out: src/main/kotlin/com/example/authors/mysql
-    plugin: kt
+    plugin: scala
     options:
       package: com.example.authors.mysql
 - schema: src/main/resources/booktest/mysql/schema.sql
@@ -50,7 +52,7 @@ sql:
   engine: mysql
   codegen:
   - out: src/main/kotlin/com/example/booktest/mysql
-    plugin: kt
+    plugin: scala
     options:
       package: com.example.booktest.mysql
 - schema: src/main/resources/ondeck/mysql/schema
@@ -58,6 +60,6 @@ sql:
   engine: mysql
   codegen:
   - out: src/main/kotlin/com/example/ondeck/mysql
-    plugin: kt
+    plugin: scala
     options:
       package: com.example.ondeck.mysql
