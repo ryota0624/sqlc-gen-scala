@@ -9,13 +9,21 @@ import java.sql.SQLException
 import java.sql.Statement
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.OffsetDateTime
 import java.util.UUID
 import scala.util.Using
 
 case class ExampleTable (
-  id: Int,
-  dates: Array[LocalDate],
-  timestamps: Array[LocalDateTime],
-  uuids: Array[UUID]
+  id: String,
+  dates: List[LocalDate],
+  timestamps: List[LocalDateTime],
+  uuids: List[UUID],
+  jsons: List[String],
+  date: LocalDate,
+  timestamp: LocalDateTime,
+  uuid: UUID,
+  json: String,
+  offsettimestamp: OffsetDateTime,
+  offsettimestampArray: List[OffsetDateTime]
 )
 

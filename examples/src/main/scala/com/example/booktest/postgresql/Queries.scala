@@ -12,7 +12,7 @@ import java.time.OffsetDateTime
 import scala.util.Using
 
 trait Queries {
-  def booksByTags(dollar1: Array[String]): List[BooksByTagsRow]
+  def booksByTags(dollar1: List[String]): List[BooksByTagsRow]
   
   def booksByTitleYear(title: String, year: Int): List[Book]
   
@@ -25,7 +25,7 @@ trait Queries {
       title: String,
       year: Int,
       available: OffsetDateTime,
-      tags: Array[String]): Option[Book]
+      tags: List[String]): Option[Book]
   
   def deleteBook(bookId: Int): Unit
   
@@ -35,12 +35,12 @@ trait Queries {
   
   def updateBook(
       title: String,
-      tags: Array[String],
+      tags: List[String],
       bookId: Int): Unit
   
   def updateBookISBN(
       title: String,
-      tags: Array[String],
+      tags: List[String],
       isbn: String,
       bookId: Int): Unit
   

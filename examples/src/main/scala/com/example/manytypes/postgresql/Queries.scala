@@ -9,16 +9,25 @@ import java.sql.SQLException
 import java.sql.Statement
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.OffsetDateTime
 import java.util.UUID
 import scala.util.Using
 
 trait Queries {
   def insertExample(
-      dates: Array[LocalDate],
-      timestamps: Array[LocalDateTime],
-      uuids: Array[UUID]): Unit
+      id: String,
+      dates: List[LocalDate],
+      timestamps: List[LocalDateTime],
+      uuids: List[UUID],
+      dollar5: List[String],
+      date: LocalDate,
+      timestamp: LocalDateTime,
+      uuid: UUID,
+      dollar9_2: String,
+      offsettimestamp: OffsetDateTime,
+      offsettimestampArray: List[OffsetDateTime]): Unit
   
-  def selectExample(id: Int): Option[ExampleTable]
+  def selectExample(id: String): Option[ExampleTable]
   
 }
 

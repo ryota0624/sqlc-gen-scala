@@ -162,12 +162,12 @@ func jdbcGet(t ktType, idx int) string {
 
 func (t ktType) jdbcResultGet(index int) string {
 	if t.IsEnum && t.IsArray {
-		return fmt.Sprintf("results.getArray(%d).getArray().asInstanceOf[Array[String]].map(%s.valueOf)", index, t.Name)
+		return fmt.Sprintf("results.getArray(%d).getArray().asInstanceOf[Array[String]].map(%s.valueOf).toList", index, t.Name)
 	}
 
 	// NOTE: UUIDとかいけるか？
 	if t.IsArray {
-		return fmt.Sprintf("results.getArray(%d).getArray().asInstanceOf[Array[%s]]", index, t.Name)
+		return fmt.Sprintf("results.getArray(%d).getArray().asInstanceOf[Array[AnyRef]].map(%s).toList", index, t.fromSqlTypeFunc())
 	}
 
 	if t.IsNull {
@@ -186,11 +186,34 @@ func (t ktType) jdbcResultGetNoneArray(index int) string {
 	case t.IsInstant():
 		return fmt.Sprintf("results.getTimestamp(%d).toInstant()", index)
 	case t.IsUUID():
-		return fmt.Sprintf("results.getObject(%d).asInstranceOf[%s]", index, t.Name)
+		return fmt.Sprintf("results.getObject(%d).asInstanceOf[%s]", index, t.Name)
 	case t.IsBigDecimal():
 		return fmt.Sprintf("results.getBigDecimal(%d)", index)
 	default:
 		return fmt.Sprintf("results.get%s(%d)", t.Name, index)
+	}
+}
+
+func (t ktType) fromSqlTypeFunc() string {
+	switch {
+	case t.IsEnum:
+		return fmt.Sprintf("{ anyRef => %s.valueOf(anyRef.asInstanceOf[String]) }", t.Name)
+	case t.IsInstant():
+		return "{ anyRef => anyRef.asInstanceOf[java.sql.Timestamp].toInstant() }"
+	case t.Name == "LocalDate":
+		return "{ anyRef => anyRef.asInstanceOf[java.sql.Date].toLocalDate }"
+	case t.Name == "LocalDateTime":
+		return "{ anyRef => anyRef.asInstanceOf[java.sql.Timestamp].toLocalDateTime }"
+	case t.Name == "LocalTime":
+		return "{ anyRef => anyRef.asInstanceOf[java.sql.Time].toLocalTime }"
+	case t.Name == "OffsetDateTime":
+		return "{ anyRef => anyRef.asInstanceOf[java.sql.Timestamp].toInstant.atOffset(java.time.ZoneOffset.UTC) }"
+	case t.IsUUID():
+		return "_.asInstanceOf[java.util.UUID]"
+	case t.IsBigDecimal():
+		return "{ anyRef => anyRef.asInstanceOf[java.math.BigDecimal }"
+	default:
+		return fmt.Sprintf("_.asInstanceOf[%s]", t.Name)
 	}
 }
 
@@ -346,24 +369,11 @@ type ktType struct {
 func (t ktType) String() string {
 	v := t.Name
 	if t.IsArray {
-		v = fmt.Sprintf("Array[%s]", v)
+		v = fmt.Sprintf("List[%s]", v)
 	} else if t.IsNull {
 		v = fmt.Sprintf("Option[%s]", v)
 	}
 	return v
-}
-
-func (t ktType) jdbcType() string {
-	if t.IsArray {
-		return "Array"
-	}
-	if t.IsEnum || t.IsTime() {
-		return "Object"
-	}
-	if t.IsInstant() {
-		return "Timestamp"
-	}
-	return t.Name
 }
 
 func (t ktType) IsTime() bool {

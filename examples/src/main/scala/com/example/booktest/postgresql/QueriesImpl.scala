@@ -28,7 +28,7 @@ case class BooksByTagsRow (
   title: String,
   name: Option[String],
   isbn: String,
-  tags: Array[String]
+  tags: List[String]
 )
 
 val booksByTitleYearSQL = """-- name: booksByTitleYear :many
@@ -91,7 +91,7 @@ WHERE book_id = ?
 
 class QueriesImpl(private val conn: Connection) extends Queries {
 
-  override def booksByTags(dollar1: Array[String]): List[BooksByTagsRow] = {
+  override def booksByTags(dollar1: List[String]): List[BooksByTagsRow] = {
     Using.resource(conn.prepareStatement(booksByTagsSQL)) { stmt =>
       stmt.setArray(1, conn.createArrayOf("pg_catalog.varchar", dollar1.toArray()))
 
@@ -103,7 +103,7 @@ class QueriesImpl(private val conn: Connection) extends Queries {
                 results.getString(2),
                 Option(results.getObject(3)).map { _ => results.getString(3) },
                 results.getString(4),
-                results.getArray(5).getArray().asInstanceOf[Array[String]]
+                results.getArray(5).getArray().asInstanceOf[Array[AnyRef]].map(_.asInstanceOf[String]).toList
             )
       }
       ret.toList
@@ -126,7 +126,7 @@ class QueriesImpl(private val conn: Connection) extends Queries {
                 results.getString(5),
                 results.getInt(6),
                 results.getObject(7, classOf[OffsetDateTime]),
-                results.getArray(8).getArray().asInstanceOf[Array[String]]
+                results.getArray(8).getArray().asInstanceOf[Array[AnyRef]].map(_.asInstanceOf[String]).toList
             )
       }
       ret.toList
@@ -158,7 +158,7 @@ class QueriesImpl(private val conn: Connection) extends Queries {
       title: String,
       year: Int,
       available: OffsetDateTime,
-      tags: Array[String]): Option[Book] = {
+      tags: List[String]): Option[Book] = {
     Using.resource(conn.prepareStatement(createBookSQL)) { stmt =>
       stmt.setInt(1, authorId)
           stmt.setString(2, isbn)
@@ -178,7 +178,7 @@ class QueriesImpl(private val conn: Connection) extends Queries {
                 results.getString(5),
                 results.getInt(6),
                 results.getObject(7, classOf[OffsetDateTime]),
-                results.getArray(8).getArray().asInstanceOf[Array[String]]
+                results.getArray(8).getArray().asInstanceOf[Array[AnyRef]].map(_.asInstanceOf[String]).toList
             )
         if (results.next()) {
           throw SQLException("expected one row in result set, but got many")
@@ -228,7 +228,7 @@ class QueriesImpl(private val conn: Connection) extends Queries {
                 results.getString(5),
                 results.getInt(6),
                 results.getObject(7, classOf[OffsetDateTime]),
-                results.getArray(8).getArray().asInstanceOf[Array[String]]
+                results.getArray(8).getArray().asInstanceOf[Array[AnyRef]].map(_.asInstanceOf[String]).toList
             )
         if (results.next()) {
           throw SQLException("expected one row in result set, but got many")
@@ -240,7 +240,7 @@ class QueriesImpl(private val conn: Connection) extends Queries {
 
   override def updateBook(
       title: String,
-      tags: Array[String],
+      tags: List[String],
       bookId: Int): Unit = {
     Using.resource(conn.prepareStatement(updateBookSQL)) { stmt =>
       stmt.setString(1, title)
@@ -253,7 +253,7 @@ class QueriesImpl(private val conn: Connection) extends Queries {
 
   override def updateBookISBN(
       title: String,
-      tags: Array[String],
+      tags: List[String],
       isbn: String,
       bookId: Int): Unit = {
     Using.resource(conn.prepareStatement(updateBookISBNSQL)) { stmt =>

@@ -26,14 +26,14 @@ case class City (
 case class Venue (
   id: Int,
   status: Status,
-  statuses: Array[Status],
+  statuses: List[Status],
   // This value appears in public URLs
   slug: String,
   name: String,
   city: String,
   spotifyPlaylist: String,
   songkickId: Option[String],
-  tags: Array[String],
+  tags: List[String],
   createdAt: LocalDateTime
 )
 

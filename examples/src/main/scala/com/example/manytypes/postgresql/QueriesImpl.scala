@@ -9,45 +9,92 @@ import java.sql.SQLException
 import java.sql.Statement
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.OffsetDateTime
 import java.util.UUID
 import scala.util.Using
 
 val insertExampleSQL = """-- name: insertExample :exec
-INSERT INTO example_table (dates, timestamps, uuids)
-VALUES (?, ?, ?)
+INSERT INTO example_table (
+    id,
+    dates,
+    timestamps,
+    uuids,
+    jsons,
+    date,
+    timestamp,
+    uuid,
+    json,
+    offsettimestamp,
+    offsettimestamp_array
+) VALUES (
+    ?,
+    ?,
+    ?,
+    ?,
+    ? :: jsonb[],
+    ?,
+    ?,
+    ?,
+    ? :: jsonb,
+    ?,
+    ?
+)
 """
 
 val selectExampleSQL = """-- name: selectExample :one
-SELECT id, dates, timestamps, uuids FROM example_table
+SELECT id, dates, timestamps, uuids, jsons, date, timestamp, uuid, json, offsettimestamp, offsettimestamp_array FROM example_table
 WHERE id = ?
 """
 
 class QueriesImpl(private val conn: Connection) extends Queries {
 
   override def insertExample(
-      dates: Array[LocalDate],
-      timestamps: Array[LocalDateTime],
-      uuids: Array[UUID]): Unit = {
+      id: String,
+      dates: List[LocalDate],
+      timestamps: List[LocalDateTime],
+      uuids: List[UUID],
+      dollar5: List[String],
+      date: LocalDate,
+      timestamp: LocalDateTime,
+      uuid: UUID,
+      dollar9_2: String,
+      offsettimestamp: OffsetDateTime,
+      offsettimestampArray: List[OffsetDateTime]): Unit = {
     Using.resource(conn.prepareStatement(insertExampleSQL)) { stmt =>
-      stmt.setArray(1, conn.createArrayOf("date", dates.toArray()))
-          stmt.setArray(2, conn.createArrayOf("pg_catalog.timestamp", timestamps.toArray()))
-          stmt.setArray(3, conn.createArrayOf("uuid", uuids.toArray()))
+      stmt.setString(1, id)
+          stmt.setArray(2, conn.createArrayOf("date", dates.toArray()))
+          stmt.setArray(3, conn.createArrayOf("pg_catalog.timestamp", timestamps.toArray()))
+          stmt.setArray(4, conn.createArrayOf("uuid", uuids.toArray()))
+          stmt.setArray(5, conn.createArrayOf("jsonb", dollar5.toArray()))
+          stmt.setObject(6, date)
+          stmt.setObject(7, timestamp)
+          stmt.setObject(8, uuid)
+          stmt.setString(9, dollar9_2)
+          stmt.setObject(10, offsettimestamp)
+          stmt.setArray(11, conn.createArrayOf("timestamptz", offsettimestampArray.toArray()))
 
       stmt.execute()
     }
   }
 
-  override def selectExample(id: Int): Option[ExampleTable] = {
+  override def selectExample(id: String): Option[ExampleTable] = {
     Using.resource(conn.prepareStatement(selectExampleSQL)) { stmt =>
-      stmt.setInt(1, id)
+      stmt.setString(1, id)
 
       val results = stmt.executeQuery()
       Option.when(results.next()) {
         val ret = ExampleTable(
-                results.getInt(1),
-                results.getArray(2).getArray().asInstanceOf[Array[LocalDate]],
-                results.getArray(3).getArray().asInstanceOf[Array[LocalDateTime]],
-                results.getArray(4).getArray().asInstanceOf[Array[UUID]]
+                results.getString(1),
+                results.getArray(2).getArray().asInstanceOf[Array[AnyRef]].map({ anyRef => anyRef.asInstanceOf[java.sql.Date].toLocalDate }).toList,
+                results.getArray(3).getArray().asInstanceOf[Array[AnyRef]].map({ anyRef => anyRef.asInstanceOf[java.sql.Timestamp].toLocalDateTime }).toList,
+                results.getArray(4).getArray().asInstanceOf[Array[AnyRef]].map(_.asInstanceOf[java.util.UUID]).toList,
+                results.getArray(5).getArray().asInstanceOf[Array[AnyRef]].map(_.asInstanceOf[String]).toList,
+                results.getObject(6, classOf[LocalDate]),
+                results.getObject(7, classOf[LocalDateTime]),
+                results.getObject(8).asInstanceOf[UUID],
+                results.getString(9),
+                results.getObject(10, classOf[OffsetDateTime]),
+                results.getArray(11).getArray().asInstanceOf[Array[AnyRef]].map({ anyRef => anyRef.asInstanceOf[java.sql.Timestamp].toInstant.atOffset(java.time.ZoneOffset.UTC) }).toList
             )
         if (results.next()) {
           throw SQLException("expected one row in result set, but got many")

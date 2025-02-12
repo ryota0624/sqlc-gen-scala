@@ -20,8 +20,8 @@ trait Queries {
       city: String,
       spotifyPlaylist: String,
       status: Status,
-      statuses: Array[Status],
-      tags: Array[String]): Option[Int]
+      statuses: List[Status],
+      tags: List[String]): Option[Int]
   
   def deleteVenue(slug: String): Unit
   

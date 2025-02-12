@@ -29,6 +29,6 @@ case class Book (
   title: String,
   year: Int,
   available: OffsetDateTime,
-  tags: Array[String]
+  tags: List[String]
 )
 

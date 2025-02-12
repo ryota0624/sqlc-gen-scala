@@ -131,8 +131,8 @@ class QueriesImpl(private val conn: Connection) extends Queries {
       city: String,
       spotifyPlaylist: String,
       status: Status,
-      statuses: Array[Status],
-      tags: Array[String]): Option[Int] = {
+      statuses: List[Status],
+      tags: List[String]): Option[Int] = {
     Using.resource(conn.prepareStatement(createVenueSQL)) { stmt =>
       stmt.setString(1, slug)
           stmt.setString(2, name)
@@ -190,13 +190,13 @@ class QueriesImpl(private val conn: Connection) extends Queries {
         val ret = Venue(
                 results.getInt(1),
                 Status.valueOf(results.getString(2)),
-                results.getArray(3).getArray().asInstanceOf[Array[String]].map(Status.valueOf),
+                results.getArray(3).getArray().asInstanceOf[Array[String]].map(Status.valueOf).toList,
                 results.getString(4),
                 results.getString(5),
                 results.getString(6),
                 results.getString(7),
                 Option(results.getObject(8)).map { _ => results.getString(8) },
-                results.getArray(9).getArray().asInstanceOf[Array[String]],
+                results.getArray(9).getArray().asInstanceOf[Array[AnyRef]].map(_.asInstanceOf[String]).toList,
                 results.getObject(10, classOf[LocalDateTime])
             )
         if (results.next()) {
@@ -232,13 +232,13 @@ class QueriesImpl(private val conn: Connection) extends Queries {
           ret += Venue(
                 results.getInt(1),
                 Status.valueOf(results.getString(2)),
-                results.getArray(3).getArray().asInstanceOf[Array[String]].map(Status.valueOf),
+                results.getArray(3).getArray().asInstanceOf[Array[String]].map(Status.valueOf).toList,
                 results.getString(4),
                 results.getString(5),
                 results.getString(6),
                 results.getString(7),
                 Option(results.getObject(8)).map { _ => results.getString(8) },
-                results.getArray(9).getArray().asInstanceOf[Array[String]],
+                results.getArray(9).getArray().asInstanceOf[Array[AnyRef]].map(_.asInstanceOf[String]).toList,
                 results.getObject(10, classOf[LocalDateTime])
             )
       }
