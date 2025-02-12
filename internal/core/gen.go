@@ -155,17 +155,11 @@ func (v Params) Bindings() string {
 	return indent(strings.Join(out, "\n"), 10, 0)
 }
 
-// TODO: care option type
 func jdbcGet(t ktType, idx int) string {
 	return t.jdbcResultGet(idx)
 }
 
 func (t ktType) jdbcResultGet(index int) string {
-	if t.IsEnum && t.IsArray {
-		return fmt.Sprintf("results.getArray(%d).getArray().asInstanceOf[Array[String]].map(%s.valueOf).toList", index, t.Name)
-	}
-
-	// NOTE: UUIDとかいけるか？
 	if t.IsArray {
 		return fmt.Sprintf("results.getArray(%d).getArray().asInstanceOf[Array[AnyRef]].map(%s).toList", index, t.fromSqlTypeFunc())
 	}
