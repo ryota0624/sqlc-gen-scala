@@ -35,14 +35,13 @@ class QueriesImpl(private val conn: Connection) extends Queries {
       {{.Arg.Bindings}}
 
       val results = stmt.executeQuery()
-      if (!results.next()) {
-        return None
-      }
-      val ret = {{.Ret.ResultSet}}
-      if (results.next()) {
+      Option.when(results.next()) {
+        val ret = {{.Ret.ResultSet}}
+        if (results.next()) {
           throw SQLException("expected one row in result set, but got many")
+        }
+        ret
       }
-      Some(ret)
     }
   }
 {{end}}
@@ -55,11 +54,11 @@ class QueriesImpl(private val conn: Connection) extends Queries {
       {{.Arg.Bindings}}
 
       val results = stmt.executeQuery()
-      val ret = scala.collection.mutable.ListBuffer.empty[{{.Ret.Type}}]()
+      val ret = scala.collection.mutable.ListBuffer.empty[{{.Ret.Type}}]
       while (results.next()) {
-          ret += ({{.Ret.ResultSet}})
+          ret += {{.Ret.ResultSet}}
       }
-      ret
+      ret.toList
     }
   }
 {{end}}

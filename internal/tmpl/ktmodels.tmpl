@@ -11,7 +11,7 @@ package {{.Package}}
 
 {{range .Enums}}
 {{if .Comment}}{{comment .Comment}}{{end}}
-{{- $enumName := .Name -}}
+{{$enumName := .Name -}}
 enum {{.Name}}(val value: String) {
   {{- range $i, $e := .Constants}}
   case {{.Name}} extends {{$enumName}}("{{.Value}}")

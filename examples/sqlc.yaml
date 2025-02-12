@@ -2,7 +2,7 @@ version: '2'
 plugins:
 - name: scala
 #  wasm:
-#    url: https://downloads.sqlc.dev/plugin/sqlc-gen-kotlin_1.2.0.wasm
+#    url: https://downloads.sqlc.dev/plugin/sqlc-gen-scala_1.2.0.wasm
 #    sha256: 22b437ecaea66417bbd3b958339d9868ba89368ce542c936c37305acf373104b
   process:
     cmd: ../bin/sqlc-gen-scala
@@ -11,7 +11,7 @@ sql:
   queries: src/main/resources/authors/postgresql/query.sql
   engine: postgresql
   codegen:
-  - out: src/main/kotlin/com/example/authors/postgresql
+  - out: src/main/scala/com/example/authors/postgresql
     plugin: scala
     options:
       package: com.example.authors.postgresql
@@ -19,7 +19,7 @@ sql:
   queries: src/main/resources/ondeck/postgresql/query
   engine: postgresql
   codegen:
-  - out: src/main/kotlin/com/example/ondeck/postgresql
+  - out: src/main/scala/com/example/ondeck/postgresql
     plugin: scala
     options:
       package: com.example.ondeck.postgresql
@@ -28,14 +28,14 @@ sql:
   engine: postgresql
   codegen:
   - plugin: scala
-    out: src/main/kotlin/com/example/jets
+    out: src/main/scala/com/example/jets
     options:
       package: com.example.jets
 - schema: src/main/resources/booktest/postgresql/schema.sql
   queries: src/main/resources/booktest/postgresql/query.sql
   engine: postgresql
   codegen:
-  - out: src/main/kotlin/com/example/booktest/postgresql
+  - out: src/main/scala/com/example/booktest/postgresql
     plugin: scala
     options:
       package: com.example.booktest.postgresql
@@ -43,7 +43,7 @@ sql:
   queries: src/main/resources/authors/mysql/query.sql
   engine: mysql
   codegen:
-  - out: src/main/kotlin/com/example/authors/mysql
+  - out: src/main/scala/com/example/authors/mysql
     plugin: scala
     options:
       package: com.example.authors.mysql
@@ -51,7 +51,7 @@ sql:
   queries: src/main/resources/booktest/mysql/query.sql
   engine: mysql
   codegen:
-  - out: src/main/kotlin/com/example/booktest/mysql
+  - out: src/main/scala/com/example/booktest/mysql
     plugin: scala
     options:
       package: com.example.booktest.mysql
@@ -59,7 +59,15 @@ sql:
   queries: src/main/resources/ondeck/mysql/query
   engine: mysql
   codegen:
-  - out: src/main/kotlin/com/example/ondeck/mysql
+  - out: src/main/scala/com/example/ondeck/mysql
     plugin: scala
     options:
       package: com.example.ondeck.mysql
+- schema: src/main/resources/manytypes/postgresql/schema.sql
+  queries: src/main/resources/manytypes/postgresql/query.sql
+  engine: postgresql
+  codegen:
+  - out: src/main/scala/com/example/manytypes/postgresql
+    plugin: scala
+    options:
+      package: com.example.manytypes.postgresql

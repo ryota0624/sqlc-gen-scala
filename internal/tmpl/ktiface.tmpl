@@ -15,7 +15,7 @@ trait Queries {
   def {{.MethodName}}({{.Arg.Args}}): Option[{{.Ret.Type}}]
   {{- end}}
   {{- if eq .Cmd ":many"}}
-  def {{.MethodName}}({{.Arg.Args}}): List<{{.Ret.Type}}>
+  def {{.MethodName}}({{.Arg.Args}}): List[{{.Ret.Type}}]
   {{- end}}
   {{- if eq .Cmd ":exec"}}
   def {{.MethodName}}({{.Arg.Args}}): Unit

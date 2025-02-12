@@ -73,6 +73,7 @@ func (v QueryValue) Type() string {
 	panic("no type for QueryValue: " + v.Name)
 }
 
+// TODO: care option type
 func jdbcSet(t ktType, idx int, name string) string {
 	if t.IsEnum && t.IsArray {
 		return fmt.Sprintf(`stmt.setArray(%d, conn.createArrayOf("%s", %s.map(_.value).toArray()))`, idx, t.DataType, name)
@@ -154,36 +155,43 @@ func (v Params) Bindings() string {
 	return indent(strings.Join(out, "\n"), 10, 0)
 }
 
+// TODO: care option type
 func jdbcGet(t ktType, idx int) string {
+	return t.jdbcResultGet(idx)
+}
+
+func (t ktType) jdbcResultGet(index int) string {
 	if t.IsEnum && t.IsArray {
-		return fmt.Sprintf(`(results.getArray(%d).array as Array<String>).map { v -> %s.lookup(v)!! }.toList()`, idx, t.Name)
+		return fmt.Sprintf("results.getArray(%d).getArray().asInstanceOf[Array[String]].map(%s.valueOf)", index, t.Name)
 	}
-	if t.IsEnum {
-		return fmt.Sprintf("%s.valueOf(results.getString(%d))!!", t.Name, idx)
-	}
+
+	// NOTE: UUIDとかいけるか？
 	if t.IsArray {
-		return fmt.Sprintf(`(results.getArray(%d).array as Array<%s>).toList()`, idx, t.Name)
+		return fmt.Sprintf("results.getArray(%d).getArray().asInstanceOf[Array[%s]]", index, t.Name)
 	}
-	if t.IsTime() {
-		return fmt.Sprintf(`results.getObject(%d, %s::class.java)`, idx, t.Name)
-	}
-	if t.IsInstant() {
-		return fmt.Sprintf(`results.getTimestamp(%d).toInstant()`, idx)
-	}
-	if t.IsUUID() {
-		var nullCast string
-		if t.IsNull {
-			nullCast = "?"
-		}
-		return fmt.Sprintf(`results.getObject(%d) as%s %s`, idx, nullCast, t.Name)
-	}
-	if t.IsBigDecimal() {
-		return fmt.Sprintf(`results.getBigDecimal(%d)`, idx)
-	}
+
 	if t.IsNull {
-		return fmt.Sprintf(`Option(results.get%s(%d))`, t.Name, idx)
+		return fmt.Sprintf("Option(results.getObject(%d)).map { _ => %s }", index, t.jdbcResultGetNoneArray(index))
 	}
-	return fmt.Sprintf(`results.get%s(%d)`, t.Name, idx)
+
+	return t.jdbcResultGetNoneArray(index)
+}
+
+func (t ktType) jdbcResultGetNoneArray(index int) string {
+	switch {
+	case t.IsEnum:
+		return fmt.Sprintf("%s.valueOf(results.getString(%d))", t.Name, index)
+	case t.IsTime():
+		return fmt.Sprintf("results.getObject(%d, classOf[%s])", index, t.Name)
+	case t.IsInstant():
+		return fmt.Sprintf("results.getTimestamp(%d).toInstant()", index)
+	case t.IsUUID():
+		return fmt.Sprintf("results.getObject(%d).asInstranceOf[%s]", index, t.Name)
+	case t.IsBigDecimal():
+		return fmt.Sprintf("results.getBigDecimal(%d)", index)
+	default:
+		return fmt.Sprintf("results.get%s(%d)", t.Name, index)
+	}
 }
 
 func (v QueryValue) ResultSet() string {
@@ -338,7 +346,7 @@ type ktType struct {
 func (t ktType) String() string {
 	v := t.Name
 	if t.IsArray {
-		v = fmt.Sprintf("List[%s]", v)
+		v = fmt.Sprintf("Array[%s]", v)
 	} else if t.IsNull {
 		v = fmt.Sprintf("Option[%s]", v)
 	}
@@ -497,13 +505,13 @@ func BuildQueries(req *plugin.GenerateRequest, structs []Struct) ([]Query, error
 			continue
 		}
 		if query.Cmd == metadata.CmdCopyFrom {
-			return nil, errors.New("Support for CopyFrom in Kotlin is not implemented")
+			return nil, errors.New("support for CopyFrom in Kotlin is not implemented")
 		}
 
 		ql, args := jdbcSQL(query.Text, req.Settings.Engine)
 		refs, err := parseInts(args)
 		if err != nil {
-			return nil, fmt.Errorf("Invalid parameter reference: %w", err)
+			return nil, fmt.Errorf("invalid parameter reference: %w", err)
 		}
 		gq := Query{
 			Cmd:          query.Cmd,
@@ -599,10 +607,6 @@ type KtTmplCtx struct {
 	EmitJSONTags        bool
 	EmitPreparedQueries bool
 	EmitInterface       bool
-}
-
-func Offset(v int) int {
-	return v + 1
 }
 
 func KtFormat(s string) string {
