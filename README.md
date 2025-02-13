@@ -1,3 +1,5 @@
+forked & originally from https://github.com/sqlc-dev/sqlc-gen-kotlin
+
 ## Usage
 
 ```yaml
