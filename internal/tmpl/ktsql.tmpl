@@ -10,38 +10,38 @@ package {{.Package}}
 {{end}}
 
 {{range .Queries}}
-const val {{.ConstantName}} = {{$.Q}}-- name: {{.MethodName}} {{.Cmd}}
+{{- $ConstantNameSQL := printf "%sSQL" .ConstantName -}}
+val {{$ConstantNameSQL}} = {{$.Q}}-- name: {{.MethodName}} {{.Cmd}}
 {{.SQL}}
 {{$.Q}}
 
 {{if .Ret.EmitStruct}}
-data class {{.Ret.Type}} ( {{- range $i, $e := .Ret.Struct.Fields}}
+case class {{.Ret.Type}} ( {{- range $i, $e := .Ret.Struct.Fields}}
   {{- if $i }},{{end}}
-  val {{.Name}}: {{.Type}}
+  {{.Name}}: {{.Type}}
   {{- end}}
 )
 {{end}}
 {{end}}
 
-class QueriesImpl(private val conn: Connection) : Queries {
+class QueriesImpl(private val conn: Connection) extends Queries {
 {{range .Queries}}
+{{- $ConstantNameSQL := printf "%sSQL" .ConstantName -}}
 {{if eq .Cmd ":one"}}
 {{range .Comments}}//{{.}}
 {{end}}
-  @Throws(SQLException::class)
-  override fun {{.MethodName}}({{.Arg.Args}}): {{.Ret.Type}}? {
-    return conn.prepareStatement({{.ConstantName}}).use { stmt ->
+  override def {{.MethodName}}({{.Arg.Args}}): Option[{{.Ret.Type}}] = {
+    Using.resource(conn.prepareStatement({{$ConstantNameSQL}})) { stmt =>
       {{.Arg.Bindings}}
 
       val results = stmt.executeQuery()
-      if (!results.next()) {
-        return null
-      }
-      val ret = {{.Ret.ResultSet}}
-      if (results.next()) {
+      Option.when(results.next()) {
+        val ret = {{.Ret.ResultSet}}
+        if (results.next()) {
           throw SQLException("expected one row in result set, but got many")
+        }
+        ret
       }
-      ret
     }
   }
 {{end}}
@@ -49,17 +49,16 @@ class QueriesImpl(private val conn: Connection) : Queries {
 {{if eq .Cmd ":many"}}
 {{range .Comments}}//{{.}}
 {{end}}
-  @Throws(SQLException::class)
-  override fun {{.MethodName}}({{.Arg.Args}}): List<{{.Ret.Type}}> {
-    return conn.prepareStatement({{.ConstantName}}).use { stmt ->
+  override def {{.MethodName}}({{.Arg.Args}}): List[{{.Ret.Type}}] = {
+    Using.resource(conn.prepareStatement({{$ConstantNameSQL}})) { stmt =>
       {{.Arg.Bindings}}
 
       val results = stmt.executeQuery()
-      val ret = mutableListOf<{{.Ret.Type}}>()
+      val ret = scala.collection.mutable.ListBuffer.empty[{{.Ret.Type}}]
       while (results.next()) {
-          ret.add({{.Ret.ResultSet}})
+          ret += {{.Ret.ResultSet}}
       }
-      ret
+      ret.toList
     }
   }
 {{end}}
@@ -67,10 +66,9 @@ class QueriesImpl(private val conn: Connection) : Queries {
 {{if eq .Cmd ":exec"}}
 {{range .Comments}}//{{.}}
 {{end}}
-  @Throws(SQLException::class)
   {{ if $.EmitInterface }}override {{ end -}}
-  override fun {{.MethodName}}({{.Arg.Args}}) {
-    conn.prepareStatement({{.ConstantName}}).use { stmt ->
+  override def {{.MethodName}}({{.Arg.Args}}): Unit = {
+    Using.resource(conn.prepareStatement({{$ConstantNameSQL}})) { stmt =>
       {{ .Arg.Bindings }}
 
       stmt.execute()
@@ -81,10 +79,9 @@ class QueriesImpl(private val conn: Connection) : Queries {
 {{if eq .Cmd ":execrows"}}
 {{range .Comments}}//{{.}}
 {{end}}
-  @Throws(SQLException::class)
   {{ if $.EmitInterface }}override {{ end -}}
-  override fun {{.MethodName}}({{.Arg.Args}}): Int {
-    return conn.prepareStatement({{.ConstantName}}).use { stmt ->
+  override def {{.MethodName}}({{.Arg.Args}}): Int = {
+    Using.resource(conn.prepareStatement({{$ConstantNameSQL}})) { stmt =>
       {{ .Arg.Bindings }}
 
       stmt.execute()
@@ -96,19 +93,18 @@ class QueriesImpl(private val conn: Connection) : Queries {
 {{if eq .Cmd ":execresult"}}
 {{range .Comments}}//{{.}}
 {{end}}
-  @Throws(SQLException::class)
   {{ if $.EmitInterface }}override {{ end -}}
-  override fun {{.MethodName}}({{.Arg.Args}}): Long {
-    return conn.prepareStatement({{.ConstantName}}, Statement.RETURN_GENERATED_KEYS).use { stmt ->
+  override def {{.MethodName}}({{.Arg.Args}}): Long = {
+    Using.resource(conn.prepareStatement({{$ConstantNameSQL}}, Statement.RETURN_GENERATED_KEYS)) { stmt =>
       {{ .Arg.Bindings }}
 
       stmt.execute()
 
-      val results = stmt.generatedKeys
+      val results = stmt.getGeneratedKeys
       if (!results.next()) {
           throw SQLException("no generated key returned")
       }
-	  results.getLong(1)
+      results.getLong(1)
     }
   }
 {{end}}

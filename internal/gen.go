@@ -1,4 +1,4 @@
-package kotlin
+package scala
 
 import (
 	"bufio"
@@ -11,7 +11,7 @@ import (
 
 	"github.com/sqlc-dev/plugin-sdk-go/plugin"
 	"github.com/sqlc-dev/plugin-sdk-go/sdk"
-	"github.com/sqlc-dev/sqlc-gen-kotlin/internal/core"
+	"github.com/sqlc-dev/sqlc-gen-scala/internal/core"
 )
 
 //go:embed tmpl/ktmodels.tmpl
@@ -83,20 +83,20 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 		if err != nil {
 			return err
 		}
-		if !strings.HasSuffix(name, ".kt") {
-			name += ".kt"
+		if !strings.HasSuffix(name, ".scala") {
+			name += ".scala"
 		}
 		output[name] = core.KtFormat(b.String())
 		return nil
 	}
 
-	if err := execute("Models.kt", modelsFile); err != nil {
+	if err := execute("Models.scala", modelsFile); err != nil {
 		return nil, err
 	}
-	if err := execute("Queries.kt", ifaceFile); err != nil {
+	if err := execute("Queries.scala", ifaceFile); err != nil {
 		return nil, err
 	}
-	if err := execute("QueriesImpl.kt", sqlFile); err != nil {
+	if err := execute("QueriesImpl.scala", sqlFile); err != nil {
 		return nil, err
 	}
 

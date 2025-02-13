@@ -6,14 +6,18 @@ build:
 test:
 	go test ./...
 
-all: bin/sqlc-gen-kotlin bin/sqlc-gen-kotlin.wasm
+all: bin/sqlc-gen-scala bin/sqlc-gen-scala.wasm
 
-bin/sqlc-gen-kotlin: bin go.mod go.sum $(wildcard **/*.go)
-	cd plugin && go build -o ../bin/sqlc-gen-kotlin ./main.go
+bin/sqlc-gen-scala: bin go.mod go.sum $(wildcard **/*.go)
+	cd plugin && go build -o ../bin/sqlc-gen-scala ./main.go
 
-bin/sqlc-gen-kotlin.wasm: bin/sqlc-gen-kotlin
-	cd plugin && GOOS=wasip1 GOARCH=wasm go build -o ../bin/sqlc-gen-kotlin.wasm main.go
+bin/sqlc-gen-scala.wasm: bin/sqlc-gen-scala
+	cd plugin && GOOS=wasip1 GOARCH=wasm go build -o ../bin/sqlc-gen-scala.wasm main.go
 
 bin:
 	mkdir -p bin
 
+build_example:
+	rm -rf bin
+	make bin/sqlc-gen-scala
+	cd examples && sqlc generate

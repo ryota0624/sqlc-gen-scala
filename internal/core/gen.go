@@ -13,7 +13,7 @@ import (
 	"github.com/sqlc-dev/plugin-sdk-go/plugin"
 	"github.com/sqlc-dev/plugin-sdk-go/sdk"
 
-	"github.com/sqlc-dev/sqlc-gen-kotlin/internal/inflection"
+	"github.com/sqlc-dev/sqlc-gen-scala/internal/inflection"
 )
 
 var ktIdentPattern = regexp.MustCompile("[^a-zA-Z0-9_]+")
@@ -73,9 +73,10 @@ func (v QueryValue) Type() string {
 	panic("no type for QueryValue: " + v.Name)
 }
 
+// TODO: care option type
 func jdbcSet(t ktType, idx int, name string) string {
 	if t.IsEnum && t.IsArray {
-		return fmt.Sprintf(`stmt.setArray(%d, conn.createArrayOf("%s", %s.map { v -> v.value }.toTypedArray()))`, idx, t.DataType, name)
+		return fmt.Sprintf(`stmt.setArray(%d, conn.createArrayOf("%s", %s.map(_.value).toArray()))`, idx, t.DataType, name)
 	}
 	if t.IsEnum {
 		if t.Engine == "postgresql" {
@@ -85,7 +86,7 @@ func jdbcSet(t ktType, idx int, name string) string {
 		}
 	}
 	if t.IsArray {
-		return fmt.Sprintf(`stmt.setArray(%d, conn.createArrayOf("%s", %s.toTypedArray()))`, idx, t.DataType, name)
+		return fmt.Sprintf(`stmt.setArray(%d, conn.createArrayOf("%s", %s.toArray()))`, idx, t.DataType, name)
 	}
 	if t.IsTime() {
 		return fmt.Sprintf("stmt.setObject(%d, %s)", idx, name)
@@ -95,6 +96,10 @@ func jdbcSet(t ktType, idx int, name string) string {
 	}
 	if t.IsUUID() {
 		return fmt.Sprintf("stmt.setObject(%d, %s)", idx, name)
+	}
+
+	if t.IsNull {
+		return fmt.Sprintf("stmt.set%s(%d, %s.orNull)", t.Name, idx, name)
 	}
 	return fmt.Sprintf("stmt.set%s(%d, %s)", t.Name, idx, name)
 }
@@ -151,32 +156,59 @@ func (v Params) Bindings() string {
 }
 
 func jdbcGet(t ktType, idx int) string {
-	if t.IsEnum && t.IsArray {
-		return fmt.Sprintf(`(results.getArray(%d).array as Array<String>).map { v -> %s.lookup(v)!! }.toList()`, idx, t.Name)
-	}
-	if t.IsEnum {
-		return fmt.Sprintf("%s.lookup(results.getString(%d))!!", t.Name, idx)
-	}
+	return t.jdbcResultGet(idx)
+}
+
+func (t ktType) jdbcResultGet(index int) string {
 	if t.IsArray {
-		return fmt.Sprintf(`(results.getArray(%d).array as Array<%s>).toList()`, idx, t.Name)
+		return fmt.Sprintf("results.getArray(%d).getArray().asInstanceOf[Array[AnyRef]].map(%s).toList", index, t.fromSqlTypeFunc())
 	}
-	if t.IsTime() {
-		return fmt.Sprintf(`results.getObject(%d, %s::class.java)`, idx, t.Name)
+
+	if t.IsNull {
+		return fmt.Sprintf("Option(results.getObject(%d)).map { _ => %s }", index, t.jdbcResultGetNoneArray(index))
 	}
-	if t.IsInstant() {
-		return fmt.Sprintf(`results.getTimestamp(%d).toInstant()`, idx)
+
+	return t.jdbcResultGetNoneArray(index)
+}
+
+func (t ktType) jdbcResultGetNoneArray(index int) string {
+	switch {
+	case t.IsEnum:
+		return fmt.Sprintf("%s.valueOf(results.getString(%d))", t.Name, index)
+	case t.IsTime():
+		return fmt.Sprintf("results.getObject(%d, classOf[%s])", index, t.Name)
+	case t.IsInstant():
+		return fmt.Sprintf("results.getTimestamp(%d).toInstant()", index)
+	case t.IsUUID():
+		return fmt.Sprintf("results.getObject(%d).asInstanceOf[%s]", index, t.Name)
+	case t.IsBigDecimal():
+		return fmt.Sprintf("results.getBigDecimal(%d)", index)
+	default:
+		return fmt.Sprintf("results.get%s(%d)", t.Name, index)
 	}
-	if t.IsUUID() {
-		var nullCast string
-		if t.IsNull {
-			nullCast = "?"
-		}
-		return fmt.Sprintf(`results.getObject(%d) as%s %s`, idx, nullCast, t.Name)
+}
+
+func (t ktType) fromSqlTypeFunc() string {
+	switch {
+	case t.IsEnum:
+		return fmt.Sprintf("{ anyRef => %s.valueOf(anyRef.asInstanceOf[String]) }", t.Name)
+	case t.IsInstant():
+		return "{ anyRef => anyRef.asInstanceOf[java.sql.Timestamp].toInstant() }"
+	case t.Name == "LocalDate":
+		return "{ anyRef => anyRef.asInstanceOf[java.sql.Date].toLocalDate }"
+	case t.Name == "LocalDateTime":
+		return "{ anyRef => anyRef.asInstanceOf[java.sql.Timestamp].toLocalDateTime }"
+	case t.Name == "LocalTime":
+		return "{ anyRef => anyRef.asInstanceOf[java.sql.Time].toLocalTime }"
+	case t.Name == "OffsetDateTime":
+		return "{ anyRef => anyRef.asInstanceOf[java.sql.Timestamp].toInstant.atOffset(java.time.ZoneOffset.UTC) }"
+	case t.IsUUID():
+		return "_.asInstanceOf[java.util.UUID]"
+	case t.IsBigDecimal():
+		return "{ anyRef => anyRef.asInstanceOf[java.math.BigDecimal }"
+	default:
+		return fmt.Sprintf("_.asInstanceOf[%s]", t.Name)
 	}
-	if t.IsBigDecimal() {
-		return fmt.Sprintf(`results.getBigDecimal(%d)`, idx)
-	}
-	return fmt.Sprintf(`results.get%s(%d)`, t.Name, idx)
 }
 
 func (v QueryValue) ResultSet() string {
@@ -331,28 +363,11 @@ type ktType struct {
 func (t ktType) String() string {
 	v := t.Name
 	if t.IsArray {
-		v = fmt.Sprintf("List<%s>", v)
+		v = fmt.Sprintf("List[%s]", v)
 	} else if t.IsNull {
-		v += "?"
+		v = fmt.Sprintf("Option[%s]", v)
 	}
 	return v
-}
-
-func (t ktType) jdbcSetter() string {
-	return "set" + t.jdbcType()
-}
-
-func (t ktType) jdbcType() string {
-	if t.IsArray {
-		return "Array"
-	}
-	if t.IsEnum || t.IsTime() {
-		return "Object"
-	}
-	if t.IsInstant() {
-		return "Timestamp"
-	}
-	return t.Name
 }
 
 func (t ktType) IsTime() bool {
@@ -494,13 +509,13 @@ func BuildQueries(req *plugin.GenerateRequest, structs []Struct) ([]Query, error
 			continue
 		}
 		if query.Cmd == metadata.CmdCopyFrom {
-			return nil, errors.New("Support for CopyFrom in Kotlin is not implemented")
+			return nil, errors.New("support for CopyFrom in Kotlin is not implemented")
 		}
 
 		ql, args := jdbcSQL(query.Text, req.Settings.Engine)
 		refs, err := parseInts(args)
 		if err != nil {
-			return nil, fmt.Errorf("Invalid parameter reference: %w", err)
+			return nil, fmt.Errorf("invalid parameter reference: %w", err)
 		}
 		gq := Query{
 			Cmd:          query.Cmd,
@@ -596,10 +611,6 @@ type KtTmplCtx struct {
 	EmitJSONTags        bool
 	EmitPreparedQueries bool
 	EmitInterface       bool
-}
-
-func Offset(v int) int {
-	return v + 1
 }
 
 func KtFormat(s string) string {

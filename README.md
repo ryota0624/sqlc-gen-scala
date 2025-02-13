@@ -1,19 +1,21 @@
+forked & originally from https://github.com/sqlc-dev/sqlc-gen-kotlin
+
 ## Usage
 
 ```yaml
 version: '2'
 plugins:
-- name: kt
+- name: scala
   wasm:
-    url: https://downloads.sqlc.dev/plugin/sqlc-gen-kotlin_1.2.0.wasm
-    sha256: 22b437ecaea66417bbd3b958339d9868ba89368ce542c936c37305acf373104b
+    url: https://github.com/ryota0624/sqlc-gen-kotlin/releases/download/test0/sqlc-gen-scala.wasm
+    sha256: d180bd06a414ad475f54873ec28435c5a6f894f1baebe6b0780d8ebbfef2f317
 sql:
 - schema: src/main/resources/authors/postgresql/schema.sql
   queries: src/main/resources/authors/postgresql/query.sql
   engine: postgresql
   codegen:
-  - out: src/main/kotlin/com/example/authors/postgresql
-    plugin: kt
+  - out: src/main/scala/com/example/authors/postgresql
+    plugin: scala
     options:
       package: com.example.authors.postgresql
 ```
